@@ -1,0 +1,7 @@
+{
+    "name": "usaco-problems-picker",
+    "main": "main.js",
+    "dependencies": {
+        "inquirer": "^8.2.6"
+    }
+}

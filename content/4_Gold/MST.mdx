@@ -1,0 +1,532 @@
+---
+id: mst
+title: 'Minimum Spanning Trees'
+author: Benjamin Qi, Andrew Wang, Kuan-Hung Chen
+contributors: Neo Wang
+prerequisites:
+  - shortest-paths
+  - dsu
+description:
+  'Finding a subset of the edges of a connected, undirected, edge-weighted graph that
+  connects all the vertices to each other of minimum total weight.'
+frequency: 2
+---
+
+To review a couple of terms:
+
+- An **undirected edge** is an edge that goes both ways
+- A **connected graph** is a graph of vertices such that each vertex can reach
+  every other vertex using undirected edges.
+- A **spanning tree** is a set of edges that forms a tree and contains every
+  vertex in the original graph
+- A **minimum spanning tree** is a spanning tree such that the sum of edge
+  weights are minimized
+
+<!-- Prim's is recommended; Kruskal's algorithm might TLE -->
+
+<FocusProblem problem="standard" />
+
+## Kruskal's
+
+<Resources>
+	<Resource source="CPH" title="15.1 - Kruskal's" starred />
+	<Resource source="cp-algo" title="Kruskal's" url="graph/mst_kruskal.html" />
+	<Resource
+		source="cp-algo"
+		title="Kruskal's with DSU"
+		url="graph/mst_kruskal_with_dsu.html"
+	/>
+	<Resource source="CP2" title="4.3.2 - Kruskal's" />
+</Resources>
+
+<!--  <Resource source="PAPS" title="12.4 - Kruskal's">
+    description, example, explanation of correctness
+  </Resource> -->
+
+**Kruskal's Algorithm** finds the MST by greedily adding edges. For all edges
+not yet in the MST, we can repeatedly add the edge of minimum weight to the MST
+except when adding edges that would forms a cycle. This can be done by sorting
+the edges in order of non-decreasing weight. Furthermore, we can easily
+determine whether adding an edge will create a cycle in constant time using
+[Union Find](/gold/dsu). Note that since the most expensive operation is sorting
+the edges, the computational complexity of Kruskal's Algorithm is
+$\mathcal{O}(E \log E)$.
+
+Here's an animation of how the algorithm works:
+<video width="960" height="720" controls>
+	<source src="/animations/kruskal.mp4" type="video/mp4"/>
+</video>
+
+### Implementation
+
+<LanguageSection>
+<CPPSection>
+
+<Resources>
+	<Resource
+		source="Benq (from KACTL)"
+		url="https://github.com/bqi343/USACO/blob/master/Implementations/content/graphs%20(12)/DSU/DSU%20(7.6).h"
+		title="DSU"
+	>
+		Disjoint Set Union + Kruskal
+	</Resource>
+</Resources>
+
+```cpp
+#include "DSU.h"
+
+template <class T> T kruskal(int N, vector<pair<T, pi>> ed) {
+	sort(all(ed));
+	T ans = 0;
+	DSU D;
+	D.init(N);  // edges that unite are in MST
+	trav(a, ed) if (D.unite(a.s.f, a.s.s)) ans += a.f;
+	return ans;
+}
+```
+
+</CPPSection>
+
+<JavaSection>
+
+```java
+public static HashMap<Integer, ArrayList<Integer>> MST;
+public static PriorityQueue<Edge> pq;  // contains all edges
+
+// Assumes that DSU code is included
+public static void kruskal() {
+	while (!pq.isEmpty()) {
+		Edge e = pq.poll();
+		if (find(e.start) != find(e.end)) {
+			MST.get(e.start).add(e.end);
+			MST.get(e.end).add(e.start);
+			union(e.start, e.end);
+		}
+	}
+}
+
+static class Edge implements Comparable<Edge> {
+	int start, end, weight;
+	public Edge(int s, int e, int w) {
+		start = s;
+		end = e;
+		weight = w;
+	}
+	public int compareTo(Edge o) {
+		if (this.weight > o.weight) {
+			return 1;
+		} else if (this.weight == o.weight) {
+			return 0;
+		} else {
+			return -1;
+		}
+	}
+}
+```
+
+</JavaSection>
+
+</LanguageSection>
+
+### Solution - Road Reparation
+
+Notice that the road that allows for a "decent route between any two cities,"
+with cost "as small as possible" is the definition of a minimum spanning tree.
+Thus, we can use our favorite minimum spanning tree algorithm to determine the
+cost of such a tree by calculating $\sum c$ for all edges included in the tree.
+
+However, we must also account for the impossible case, which occurs when any
+nodes cannot be connected to the tree. Recall that the minimum spanning tree
+must contain a total of $n-1$ edges, so we can use a variable $cnt$ that is
+incremented every time we add an edge to the minimum spanning tree. After
+running Kruskal's, if $cnt \ne n-1$, then we know that we failed to built the
+tree properly. Furthermore, since our minimum spanning tree algorithm gurantees
+no edges are counted twice, we cannot "accidentally" count $n-1$ edges.
+
+<LanguageSection>
+
+<CPPSection>
+
+```cpp
+#include <algorithm>
+#include <iostream>
+#include <limits>
+#include <vector>
+
+using namespace std;
+
+struct DSU {
+	vector<int> e;
+
+	DSU(int N) : e(N, -1) {}
+
+	int get(int x) { return e[x] < 0 ? x : e[x] = get(e[x]); }
+
+	bool connected(int a, int b) { return get(a) == get(b); }
+
+	int size(int x) { return -e[get(x)]; }
+
+	bool unite(int x, int y) {
+		x = get(x), y = get(y);
+		if (x == y) { return false; }
+		if (e[x] > e[y]) { swap(x, y); }
+		e[x] += e[y];
+		e[y] = x;
+		return true;
+	}
+};
+
+template <class T> T kruskal(int N, vector<pair<T, pair<int, int>>> edges) {
+	sort(edges.begin(), edges.end());
+	T ans = 0;
+	DSU D(N + 1);  // edges that unite are in MST
+	for (pair<T, pair<int, int>> &e : edges) {
+		if (D.unite(e.second.first, e.second.second)) { ans += e.first; }
+	}
+	// -1 if the graph is not connected, otherwise the sum of the edge lengths
+	return (D.size(1) == N ? ans : -1);
+}
+
+int main() {
+	ios_base::sync_with_stdio(0);
+	cin.tie(0);
+	int n, m;
+	cin >> n >> m;
+	vector<pair<long long, pair<int, int>>> edges;
+	for (int i = 0; i < m; i++) {
+		int a, b;
+		long long c;
+		cin >> a >> b >> c;
+		edges.push_back({c, {a, b}});
+	}
+
+	long long ans = kruskal(n, edges);
+	if (ans >= 0) {
+		cout << ans;
+	} else {
+		cout << "IMPOSSIBLE";
+	}
+}
+```
+
+</CPPSection>
+
+<JavaSection>
+
+```java
+import java.io.*;
+import java.util.*;
+
+class Kruskal {
+	static int comp;
+	static int disjoint[];
+	static int size[];
+	public static void main(String[] args) throws IOException {
+		BufferedReader sc =
+		    new BufferedReader(new InputStreamReader(System.in));
+		PrintWriter out = new PrintWriter(System.out);
+		StringTokenizer st = new StringTokenizer(sc.readLine());
+		int N = Integer.parseInt(st.nextToken());
+		int M = Integer.parseInt(st.nextToken());
+
+		PriorityQueue<Edge> pq = new PriorityQueue<Edge>();
+		for (int m = 0; m < M; m++) {
+			st = new StringTokenizer(sc.readLine());
+			int a = Integer.parseInt(st.nextToken());
+			int b = Integer.parseInt(st.nextToken());
+			int w = Integer.parseInt(st.nextToken());
+
+			pq.add(new Edge(a, b, w));
+		}
+		comp = N;
+		long ans = 0;
+		disjoint = new int[N + 1];
+		Arrays.fill(disjoint, -1);
+		size = new int[N + 1];
+		Arrays.fill(size, 0);
+		while (!pq.isEmpty()) {
+			Edge e = pq.poll();
+			if (find(e.start) != find(e.end)) {
+				union(e.start, e.end);
+				ans += e.weight;
+			}
+		}
+		out.println((comp == 1) ? ans : "IMPOSSIBLE");
+		out.close();
+	}
+	public static int find(int v) {
+		if (disjoint[v] == -1) { return v; }
+		disjoint[v] = find(disjoint[v]);
+		return disjoint[v];
+	}
+	public static void union(int u, int v) {
+		int uroot = find(u);
+		int vroot = find(v);
+		if (uroot == vroot) { return; }
+		if (size[uroot] < size[vroot]) {
+			disjoint[uroot] = vroot;
+			size[vroot] = size[uroot] + size[vroot];
+			comp--;
+		} else {
+			disjoint[vroot] = uroot;
+			size[uroot] = size[uroot] + size[vroot];
+			comp--;
+		}
+	}
+}
+class Edge implements Comparable<Edge> {
+	public int start, end, weight;
+	public Edge(int s, int e, int w) {
+		start = s;
+		end = e;
+		weight = w;
+	}
+	public int compareTo(Edge o) {
+		if (this.weight < o.weight) {
+			return -1;
+		} else if (this.weight == o.weight) {
+			return 0;
+		} else {
+			return 1;
+		}
+	}
+}
+```
+
+</JavaSection>
+</LanguageSection>
+
+## Prim's
+
+<Resources>
+	<Resource source="CPH" title="15.3 - Prim's" starred />
+	<Resource
+		source="cp-algo"
+		title="Prim's"
+		url="graph/mst_prim.html"
+	 />
+	<Resource source="CP2" title="4.3.3 - Prim's"/>
+</Resources>
+
+Similar to Dijkstra's, **Prim's algorithm** greedily adds vertices. On each
+iteration, we add the vertex that is closest to the current MST (instead of
+closest to the source in Dijkstra's) until all vertices have been added.
+
+The process of finding the closest vertex to the MST can be done efficiently
+using a priority queue. After removing a vertex, we add all of its neighbors
+that are not yet in the MST to the priority queue and repeat. To begin the
+algorithm, we simply add any vertex to the priority queue.
+
+### Complexity
+
+Our implementation has complexity $\mathcal{O}(E \log E)$ since in the worst
+case every edge will be checked and its corresponding vertex will be added to
+the priority queue.
+
+Alternatively, we may linearly search for the closest vertex instead of using a
+priority queue. Each linear pass runs in time $\mathcal{O}(V)$, and this must be
+repeated $V$ times. Thus, this version of Prim's algorithm has complexity
+$\mathcal{O}(V^2)$. As with Dijkstra, this complexity is preferable for dense
+graphs (in which $E \approx V^2$).
+
+### Solution - Road Reparation
+
+<LanguageSection>
+
+<CPPSection>
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+long long prim(int n, const vector<vector<pair<long long, int>>> &adj) {
+	long long weight = 0;
+	vector<long long> dist(n, numeric_limits<long long>::max());
+	dist[0] = 0;
+	set<pair<long long, int>> q;
+	// {cost, vertex}
+	q.insert({0, 0});
+	vector<bool> visited(n, false);
+	for (int i = 0; i < n; ++i) {
+		if (q.empty()) { return -1; }
+		int v = q.begin()->second;
+		visited[v] = true;
+		weight += q.begin()->first;
+		q.erase(q.begin());
+
+		for (auto &[cost, child] : adj[v]) {
+			if (!visited[child] && cost < dist[child]) {
+				q.erase({dist[child], child});
+				dist[child] = cost;
+				q.insert({cost, child});
+			}
+		}
+	}
+	return weight;
+}
+int main() {
+	ios_base::sync_with_stdio(false);
+	cin.tie(0);
+	int n, m;
+	cin >> n >> m;
+
+	vector<vector<pair<long long, int>>> adj(n);
+	for (int i = 0; i < m; i++) {
+		int a, b;
+		long long c;
+		cin >> a >> b >> c;
+		a--;
+		b--;
+		adj[a].push_back({c, b});
+		adj[b].push_back({c, a});
+	}
+
+	long long ans = prim(n, adj);
+	if (ans == -1) {
+		cout << "IMPOSSIBLE";
+	} else {
+		cout << ans;
+	}
+	cout << endl;
+}
+```
+
+</CPPSection>
+
+<JavaSection>
+
+```java
+import java.io.*;
+import java.util.*;
+
+class Prim {
+	static Map<Integer, ArrayList<Edge>> tree;
+	static int N, ct;
+	static long[] dist;
+	static long max = 10000000000000000L;
+	public static void main(String[] args) throws IOException {
+		BufferedReader sc =
+		    new BufferedReader(new InputStreamReader(System.in));
+		PrintWriter out = new PrintWriter(System.out);
+		StringTokenizer st = new StringTokenizer(sc.readLine());
+		N = Integer.parseInt(st.nextToken());
+		int M = Integer.parseInt(st.nextToken());
+
+		tree = new HashMap<Integer, ArrayList<Edge>>();
+		for (int i = 1; i <= N; i++) { tree.put(i, new ArrayList<Edge>()); }
+		for (int m = 0; m < M; m++) {
+			st = new StringTokenizer(sc.readLine());
+			int a = Integer.parseInt(st.nextToken());
+			int b = Integer.parseInt(st.nextToken());
+			int w = Integer.parseInt(st.nextToken());
+
+			tree.get(a).add(new Edge(a, b, w));
+			tree.get(b).add(new Edge(b, a, w));
+		}
+		long ans = prim(1);
+		out.println((ct == N) ? ans : "IMPOSSIBLE");
+		out.close();
+	}
+	static long prim(int source) {
+		dist = new long[N + 1];
+		boolean[] visited = new boolean[N + 1];
+		PriorityQueue<Pair> pq = new PriorityQueue<Pair>();
+		Arrays.fill(dist, max);
+		dist[source] = 0;
+		long ret = 0;
+		pq.add(new Pair(0, source));
+		while (!pq.isEmpty()) {
+			Pair p = pq.poll();
+			int v = p.b;
+			if (visited[v]) { continue; }
+			visited[v] = true;
+			ct++;
+			ret += dist[v];
+			for (Edge e : tree.get(v)) {
+				if (e.weight < dist[e.end] && !visited[e.end]) {
+					dist[e.end] = e.weight;
+					pq.add(new Pair(dist[e.end], e.end));
+				}
+			}
+		}
+		return ret;
+	}
+}
+class Edge {
+	public int start, end, weight;
+	public Edge(int s, int e, int w) {
+		start = s;
+		end = e;
+		weight = w;
+	}
+}
+class Pair implements Comparable<Pair> {
+	public long a;
+	public int b;
+	public Pair(long a, int b) {
+		this.a = a;
+		this.b = b;
+	}
+	public int compareTo(Pair o) {
+		if (this.a > o.a) {
+			return 1;
+		} else if (this.a == o.a) {
+			return 0;
+		} else {
+			return -1;
+		}
+	}
+}
+```
+
+</JavaSection>
+
+<PySection>
+
+```py
+import heapq
+
+
+def prim(n, G):
+	used = [False for _ in range(n)]
+	pq = [(0, 0)]
+	total_weight = 0
+	count = 0
+	while pq:
+		weight, node = heapq.heappop(pq)
+		if used[node]:
+			continue
+		used[node] = True
+		total_weight += weight
+		count += 1
+		for (neigh_weight, neigh_node) in G[node]:
+			if not used[neigh_node]:
+				heapq.heappush(pq, (neigh_weight, neigh_node))
+	return total_weight if count == n else -1
+
+
+n, m = map(int, input().split())
+G = [[] for _ in range(n)]
+for _ in range(m):
+	a, b, c = map(int, input().split())
+	a -= 1
+	b -= 1
+	G[a].append((c, b))
+	G[b].append((c, a))
+
+ans = prim(n, G)
+print("IMPOSSIBLE" if ans == -1 else ans)
+```
+
+</PySection>
+
+</LanguageSection>
+
+## Problems
+
+<Problems problems="general" />
+
+<Info>
+The original problem statement for "Inheritance" is in Japanese. You can find a user-translated
+version of the problem [here](https://gist.github.com/SansPapyrus683/a17f37a4a938e13000e281e4843b73bc).
+</Info>
