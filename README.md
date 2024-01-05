@@ -1,7 +1,8 @@
 # USACO Random Problems Picker
 
 ### How to use
-1. Install [node.js](https://nodejs.org/en/download).
+1. Install [node](https://nodejs.org/en/download) and [npm](https://www.npmjs.com/package/download).
+2. Run the command `npm install` in this directory from the terminal.
 2. Remove the `.temp` from files' extensions (`active.json`, `all.json`, `skipped.json`, `solved.json`).
 3. Run `fetch.js` to fetch problems using the command `node fetch.js`.
 4. Run `main.js` to do whatever you want using the command `node main.js`.
