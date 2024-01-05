@@ -17,6 +17,21 @@ async function fetch() {
             if (c == '_') start = true;
         }
         if (!start) continue;
+        let difficulty = ['Very Easy', 'Easy', 'Normal', 'Hard', 'Very Hard', 'Insane'];
+        difficulty.push(new interact.Separator('== END OF THE LIST =='));
+        console.clear();
+        await interact
+            .prompt([
+            {
+                type: 'checkbox',
+                message: `Select the difficulties of the problems to fetch in ${ name } section`,
+                name: 'difficulty',
+                choices: difficulty,
+            },
+            ])
+            .then(answers => {
+                difficulty = answers.difficulty;
+            });
         let options = [];
         let ok = [];
         const problemsPath = path.join(contentsPath, folder);
@@ -36,12 +51,11 @@ async function fetch() {
             options.push({name: topicname});
         }
         options.push(new interact.Separator('== END OF THE LIST =='));
-        console.clear();
         await interact
             .prompt([
             {
                 type: 'checkbox',
-                message: `Select the topics you want to fetch problems from in ${ name } section`,
+                message: `Select the modules you want to fetch problems from in ${ name } section`,
                 name: 'topics',
                 choices: options,
             },
@@ -70,6 +84,7 @@ async function fetch() {
             for (let section of sections) {
                 if (section == 'MODULE_ID') continue;
                 for (let problem of topicdata[section]) {
+                    if (!difficulty.includes(problem.difficulty)) continue;
                     problems.push(problem);
                     problems[problems.length - 1].section = name;
                     problems[problems.length - 1].module = options[cur].name;
